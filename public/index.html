@@ -1,0 +1,1155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Air Quality Guardian System</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary-color: #3b82f6;
+            --secondary-color: #10b981;
+            --danger-color: #ef4444;
+            --warning-color: #f59e0b;
+            --success-color: #10b981;
+            --bg-primary: #ffffff;
+            --bg-secondary: #f8fafc;
+            --text-primary: #1e293b;
+            --text-secondary: #64748b;
+            --border-color: #e2e8f0;
+            --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            --shadow-lg: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+        }
+
+        .dark {
+            --bg-primary: #0f172a;
+            --bg-secondary: #1e293b;
+            --text-primary: #f1f5f9;
+            --text-secondary: #94a3b8;
+            --border-color: #334155;
+            --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+            --shadow-lg: 0 20px 25px -5px rgba(0, 0, 0, 0.3);
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            transition: all 0.3s ease;
+            line-height: 1.6;
+        }
+
+        /* Simple subtle animations */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        @keyframes bounce {
+            0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
+            40% { transform: translateY(-10px); }
+            60% { transform: translateY(-5px); }
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+            animation: fadeIn 0.6s ease-out;
+        }
+
+        .header {
+            background: var(--bg-primary);
+            padding: 25px;
+            border-radius: 15px;
+            margin-bottom: 25px;
+            box-shadow: var(--shadow);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border: 1px solid var(--border-color);
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .logo i {
+            font-size: 2.5rem;
+            color: var(--primary-color);
+            animation: bounce 3s infinite;
+        }
+
+        .logo h1 {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .header-controls {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 20px;
+            border-radius: 25px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .status-online {
+            background: var(--success-color);
+            color: white;
+        }
+
+        .status-offline {
+            background: var(--danger-color);
+            color: white;
+            animation: pulse 2s infinite;
+        }
+
+        .status-predicting {
+            background: var(--warning-color);
+            color: white;
+        }
+
+        .theme-toggle {
+            background: var(--bg-primary);
+            border: 2px solid var(--border-color);
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .theme-toggle:hover {
+            transform: scale(1.05);
+            border-color: var(--primary-color);
+        }
+
+        .grid {
+            display: grid;
+            gap: 25px;
+            margin-bottom: 25px;
+        }
+
+        .grid-1 { grid-template-columns: 1fr; }
+        .grid-2 { grid-template-columns: repeat(2, 1fr); }
+        .grid-3 { grid-template-columns: repeat(3, 1fr); }
+
+        .card {
+            background: var(--bg-primary);
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border-color);
+            transition: all 0.3s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .aqi-card {
+            text-align: center;
+            padding: 40px;
+        }
+
+        .aqi-value {
+            font-size: 4rem;
+            font-weight: 800;
+            margin-bottom: 15px;
+            color: var(--primary-color);
+        }
+
+        .aqi-status {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 15px;
+        }
+
+        .aqi-description {
+            color: var(--text-secondary);
+            margin-bottom: 25px;
+        }
+
+        .aqi-good { color: var(--success-color); }
+        .aqi-moderate { color: var(--warning-color); }
+        .aqi-unhealthy-sensitive { color: #ff8c00; }
+        .aqi-unhealthy { color: var(--danger-color); }
+        .aqi-very-unhealthy { color: #8b5cf6; }
+        .aqi-hazardous { color: #7c2d12; }
+
+        .sensor-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+        }
+
+        .sensor-item {
+            text-align: center;
+            padding: 20px;
+            border-radius: 12px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            transition: all 0.3s ease;
+        }
+
+        .sensor-item:hover {
+            transform: scale(1.02);
+            border-color: var(--primary-color);
+        }
+
+        .sensor-value {
+            font-size: 2rem;
+            font-weight: 800;
+            margin-bottom: 8px;
+            color: var(--primary-color);
+        }
+
+        .sensor-label {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .card-title {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .card-icon {
+            font-size: 1.5rem;
+            padding: 8px;
+            border-radius: 8px;
+            background: var(--bg-secondary);
+        }
+
+        .map-container {
+            height: 600px;
+            border-radius: 12px;
+            overflow: hidden;
+            border: 1px solid var(--border-color);
+        }
+
+        .predictions-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 20px;
+        }
+
+        .prediction-card {
+            text-align: center;
+            padding: 20px;
+            border-radius: 12px;
+            background: var(--primary-color);
+            color: white;
+            transition: all 0.3s ease;
+        }
+
+        .prediction-card:hover {
+            transform: translateY(-3px);
+        }
+
+        .prediction-card:nth-child(even) {
+            background: var(--secondary-color);
+        }
+
+        .prediction-card:nth-child(3n) {
+            background: var(--warning-color);
+        }
+
+        .prediction-day {
+            font-size: 0.9rem;
+            margin-bottom: 12px;
+            opacity: 0.9;
+            font-weight: 600;
+        }
+
+        .prediction-aqi {
+            font-size: 1.6rem;
+            font-weight: 800;
+            margin-bottom: 6px;
+        }
+
+        .prediction-pm25 {
+            font-size: 0.85rem;
+            margin-bottom: 6px;
+            opacity: 0.9;
+            font-weight: 500;
+        }
+
+        .prediction-temp {
+            font-size: 0.85rem;
+            opacity: 0.8;
+        }
+
+        .prediction-label {
+            font-size: 0.7rem;
+            opacity: 0.7;
+            margin-bottom: 2px;
+        }
+
+        .prediction-metadata {
+            margin-top: 20px;
+            padding: 15px;
+            background: var(--bg-secondary);
+            border-radius: 10px;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+
+        .fan-status {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            padding: 20px;
+            border-radius: 12px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            margin-top: 20px;
+            transition: all 0.3s ease;
+        }
+
+        .fan-icon {
+            font-size: 1.8rem;
+            transition: all 0.3s ease;
+        }
+
+        .fan-off .fan-icon {
+            color: var(--text-secondary);
+        }
+
+        .fan-on .fan-icon {
+            color: var(--primary-color);
+            animation: spin 2s linear infinite;
+        }
+
+        .location-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+            margin-top: 15px;
+            padding: 12px 16px;
+            background: var(--bg-secondary);
+            border-radius: 8px;
+        }
+
+        .loading {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 200px;
+            font-size: 1.125rem;
+            color: var(--text-secondary);
+        }
+
+        .spinner {
+            width: 25px;
+            height: 25px;
+            border: 3px solid var(--border-color);
+            border-top: 3px solid var(--primary-color);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 15px;
+        }
+
+        .last-updated {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            text-align: center;
+            margin-top: 10px;
+            padding: 8px;
+            background: var(--bg-secondary);
+            border-radius: 6px;
+        }
+
+        /* Simple Copyright Section */
+        .copyright-section {
+            background: var(--bg-primary);
+            border-top: 1px solid var(--border-color);
+            padding: 40px 0;
+            margin-top: 50px;
+        }
+
+        .copyright-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+            text-align: center;
+        }
+
+        .copyright-brand {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .copyright-brand i {
+            font-size: 2.5rem;
+            color: var(--primary-color);
+        }
+
+        .copyright-brand h2 {
+            font-size: 1.8rem;
+            font-weight: 800;
+            color: var(--text-primary);
+        }
+
+        .copyright-text {
+            font-size: 1rem;
+            color: var(--text-secondary);
+            margin-bottom: 20px;
+        }
+
+        .copyright-details {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            flex-wrap: wrap;
+            margin-bottom: 20px;
+        }
+
+        .copyright-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            background: var(--bg-secondary);
+            border-radius: 20px;
+            transition: all 0.3s ease;
+        }
+
+        .copyright-item:hover {
+            transform: translateY(-2px);
+            background: var(--primary-color);
+            color: white;
+        }
+
+        .copyright-item i {
+            color: var(--primary-color);
+        }
+
+        .copyright-item:hover i {
+            color: white;
+        }
+
+        .developer-info {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            border-top: 1px solid var(--border-color);
+            padding-top: 20px;
+        }
+
+        .developer-info a {
+            color: var(--primary-color);
+            text-decoration: none;
+            transition: all 0.3s ease;
+        }
+
+        .developer-info a:hover {
+            color: var(--secondary-color);
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .grid-2, .grid-3 { grid-template-columns: 1fr; }
+            
+            .header {
+                flex-direction: column;
+                gap: 20px;
+                text-align: center;
+            }
+            
+            .aqi-value { font-size: 3rem; }
+            
+            .sensor-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .predictions-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .copyright-details {
+                flex-direction: column;
+                align-items: center;
+                gap: 15px;
+            }
+
+            .map-container {
+                height: 400px;
+            }
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--bg-secondary);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--primary-color);
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--secondary-color);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <div class="logo">
+                <i class="fas fa-leaf"></i>
+                <h1>Air Quality Guardian</h1>
+            </div>
+            <div class="header-controls">
+                <div id="connectionStatus" class="status-indicator status-offline">
+                    <i class="fas fa-wifi"></i>
+                    <span>Connecting...</span>
+                </div>
+                <div class="theme-toggle" onclick="toggleTheme()">
+                    <i id="themeIcon" class="fas fa-moon"></i>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main AQI Display -->
+        <div class="grid grid-1">
+            <div class="card aqi-card" id="aqiCard">
+                <div class="aqi-value" id="aqiValue">--</div>
+                <div class="aqi-status" id="aqiStatus">Loading...</div>
+                <div class="aqi-description" id="aqiDescription">Waiting for data...</div>
+                <div class="location-info" id="locationInfo">
+                    <i class="fas fa-map-marker-alt"></i>
+                    <span>Unknown Location</span>
+                </div>
+                <div class="fan-status" id="fanStatus">
+                    <i class="fas fa-fan fan-icon"></i>
+                    <span>Air Purifier: OFF</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sensor Data Grid -->
+        <div class="grid grid-2">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">
+                        <i class="fas fa-thermometer-half card-icon" style="color: #f59e0b;"></i>
+                        Environmental
+                    </h3>
+                </div>
+                <div class="sensor-grid">
+                    <div class="sensor-item">
+                        <div class="sensor-value" id="temperature">--°C</div>
+                        <div class="sensor-label">Temperature</div>
+                    </div>
+                    <div class="sensor-item">
+                        <div class="sensor-value" id="humidity">--%</div>
+                        <div class="sensor-label">Humidity</div>
+                    </div>
+                    <div class="sensor-item">
+                        <div class="sensor-value" id="pressure">-- hPa</div>
+                        <div class="sensor-label">Pressure</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">
+                        <i class="fas fa-smog card-icon" style="color: #ef4444;"></i>
+                        Air Quality
+                    </h3>
+                </div>
+                <div class="sensor-grid">
+                    <div class="sensor-item">
+                        <div class="sensor-value" id="pm25">-- μg/m³</div>
+                        <div class="sensor-label">PM2.5</div>
+                    </div>
+                    <div class="sensor-item">
+                        <div class="sensor-value" id="voc">-- ppb</div>
+                        <div class="sensor-label">VOC</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Gas Sensors -->
+        <div class="grid grid-1">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">
+                        <i class="fas fa-wind card-icon" style="color: #8b5cf6;"></i>
+                        Gas Concentrations
+                    </h3>
+                </div>
+                <div class="sensor-grid">
+                    <div class="sensor-item">
+                        <div class="sensor-value" id="co">-- ppm</div>
+                        <div class="sensor-label">Carbon Monoxide</div>
+                    </div>
+                    <div class="sensor-item">
+                        <div class="sensor-value" id="no2">-- ppb</div>
+                        <div class="sensor-label">Nitrogen Dioxide</div>
+                    </div>
+                    <div class="sensor-item">
+                        <div class="sensor-value" id="nh3">-- ppb</div>
+                        <div class="sensor-label">Ammonia</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Map and Predictions -->
+        <div class="grid grid-2">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">
+                        <i class="fas fa-map-marked-alt card-icon" style="color: #10b981;"></i>
+                        GPS Location
+                    </h3>
+                </div>
+                <div id="map" class="map-container">
+                    <div class="loading">
+                        <div class="spinner"></div>
+                        Loading map...
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">
+                        <i class="fas fa-crystal-ball card-icon" style="color: #3b82f6;"></i>
+                        7-Day AI Predictions
+                    </h3>
+                </div>
+                <div class="predictions-grid" id="predictionsGrid">
+                    <div class="loading">
+                        <div class="spinner"></div>
+                        Generating predictions...
+                    </div>
+                </div>
+                <div class="prediction-metadata" id="predictionMetadata" style="display: none;">
+                    <div><strong>Model Accuracy:</strong> <span id="modelAccuracy">--</span></div>
+                    <div><strong>Confidence:</strong> <span id="modelConfidence">--</span></div>
+                    <div><strong>Data Points:</strong> <span id="dataPoints">--</span></div>
+                    <div><strong>Last Updated:</strong> <span id="lastGenerated">--</span></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Simple Copyright Section -->
+    <footer class="copyright-section">
+        <div class="copyright-content">
+            <div class="copyright-brand">
+                <i class="fas fa-leaf"></i>
+                <h2>Air Quality Guardian</h2>
+            </div>
+            
+            <p class="copyright-text">
+                Advanced IoT-based Air Quality Monitoring System with Real-time Analytics & AI Predictions
+            </p>
+            
+            <div class="copyright-details">
+                <div class="copyright-item">
+                    <i class="fas fa-microchip"></i>
+                    <span>ESP32 Powered</span>
+                </div>
+                <div class="copyright-item">
+                    <i class="fas fa-wifi"></i>
+                    <span>Real-time WebSocket</span>
+                </div>
+                <div class="copyright-item">
+                    <i class="fas fa-brain"></i>
+                    <span>AI Predictions</span>
+                </div>
+                <div class="copyright-item">
+                    <i class="fas fa-map-marker-alt"></i>
+                    <span>GPS Tracking</span>
+                </div>
+                <div class="copyright-item">
+                    <i class="fas fa-database"></i>
+                    <span>MongoDB Storage</span>
+                </div>
+            </div>
+            
+            <div class="developer-info">
+                <p>&copy; 2024 Air Quality Guardian System. Developed with ❤️ for environmental monitoring.</p>
+                <p>Built using Node.js, WebSocket, MongoDB, Leaflet Maps & Python ML | 
+                   <a href="mailto:prajwal87621@gmail.com">Contact Developer</a>
+                </p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        // Global variables
+        let map = null;
+        let marker = null;
+        let ws = null;
+        let isDarkMode = false;
+        let sensorData = {};
+        let predictions = [];
+        let lastPredictionUpdate = null;
+        let connectionAttempts = 0;
+        let maxConnectionAttempts = 10;
+        let reconnectInterval = 5000;
+
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeMap();
+            connectWebSocket();
+            
+            // Load theme preference
+            if (localStorage.getItem('darkMode') === 'true') {
+                toggleTheme();
+            }
+            
+            console.log('Air Quality Guardian System initialized');
+        });
+
+        function toggleTheme() {
+            isDarkMode = !isDarkMode;
+            document.body.classList.toggle('dark', isDarkMode);
+            document.getElementById('themeIcon').className = isDarkMode ? 'fas fa-sun' : 'fas fa-moon';
+            localStorage.setItem('darkMode', isDarkMode);
+        }
+
+        function initializeMap() {
+            try {
+                map = L.map('map').setView([20.5937, 78.9629], 5);
+                
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: '© OpenStreetMap contributors'
+                }).addTo(map);
+                
+                console.log('Map initialized successfully');
+            } catch (error) {
+                console.error('Map initialization failed:', error);
+                document.getElementById('map').innerHTML = 
+                    '<div class="loading" style="color: var(--danger-color);"><i class="fas fa-exclamation-triangle"></i> Map failed to load</div>';
+            }
+        }
+
+        function connectWebSocket() {
+            if (connectionAttempts >= maxConnectionAttempts) {
+                console.error('Max connection attempts reached');
+                updateConnectionStatus('failed');
+                return;
+            }
+
+            try {
+                // Update WebSocket URL - make sure this matches your server
+                ws = new WebSocket('ws://10.20.11.189:3000/ws');
+                connectionAttempts++;
+                
+                ws.onopen = function() {
+                    console.log('WebSocket connected successfully');
+                    connectionAttempts = 0; // Reset on successful connection
+                    updateConnectionStatus('connected');
+                    
+                    // Request initial data
+                    ws.send(JSON.stringify({ 
+                        type: 'request_initial_data',
+                        timestamp: new Date().toISOString()
+                    }));
+                };
+                
+                ws.onmessage = function(event) {
+                    try {
+                        const data = JSON.parse(event.data);
+                        console.log('Received WebSocket data:', data);
+                        
+                        handleWebSocketMessage(data);
+                    } catch (error) {
+                        console.error('Error parsing WebSocket data:', error);
+                    }
+                };
+                
+                ws.onclose = function(event) {
+                    console.log('WebSocket disconnected:', event.code, event.reason);
+                    updateConnectionStatus('disconnected');
+                    
+                    // Attempt to reconnect
+                    setTimeout(() => {
+                        console.log(`Attempting to reconnect (${connectionAttempts + 1}/${maxConnectionAttempts})...`);
+                        connectWebSocket();
+                    }, reconnectInterval);
+                };
+                
+                ws.onerror = function(error) {
+                    console.error('WebSocket error:', error);
+                    updateConnectionStatus('error');
+                };
+                
+            } catch (error) {
+                console.error('Failed to create WebSocket connection:', error);
+                updateConnectionStatus('error');
+                
+                // Retry connection
+                setTimeout(() => {
+                    connectWebSocket();
+                }, reconnectInterval);
+            }
+        }
+
+        function handleWebSocketMessage(data) {
+            switch (data.type) {
+                case 'sensor_update':
+                    updateSensorData(data.data);
+                    break;
+                    
+                case 'initial_data':
+                    if (data.sensorData && data.sensorData.length > 0) {
+                        updateSensorData(data.sensorData[data.sensorData.length - 1]);
+                    }
+                    if (data.predictions && data.predictions.length > 0) {
+                        updatePredictions(data.predictions, data.metadata);
+                    }
+                    break;
+                    
+                case 'predictions_update':
+                    console.log('Received predictions update:', data.predictions);
+                    updatePredictions(data.predictions, data.metadata);
+                    lastPredictionUpdate = new Date();
+                    break;
+                    
+                case 'prediction_generating':
+                    updateConnectionStatus('predicting');
+                    showPredictionGenerating();
+                    break;
+                    
+                default:
+                    console.log('Unknown message type:', data.type);
+            }
+        }
+
+        function updateConnectionStatus(status) {
+            const statusElement = document.getElementById('connectionStatus');
+            
+            switch (status) {
+                case 'connected':
+                    statusElement.className = 'status-indicator status-online';
+                    statusElement.innerHTML = '<i class="fas fa-wifi"></i><span>Live</span>';
+                    break;
+                    
+                case 'predicting':
+                    statusElement.className = 'status-indicator status-predicting';
+                    statusElement.innerHTML = '<i class="fas fa-brain"></i><span>Predicting</span>';
+                    break;
+                    
+                case 'disconnected':
+                case 'error':
+                    statusElement.className = 'status-indicator status-offline';
+                    statusElement.innerHTML = '<i class="fas fa-wifi"></i><span>Offline</span>';
+                    break;
+                    
+                case 'failed':
+                    statusElement.className = 'status-indicator status-offline';
+                    statusElement.innerHTML = '<i class="fas fa-exclamation-triangle"></i><span>Failed</span>';
+                    break;
+            }
+        }
+
+        function updateSensorData(data) {
+            if (!data) return;
+            
+            sensorData = data;
+            console.log('Updating sensor data:', data);
+            
+            // Update AQI display
+            const aqi = data.aqi || 0;
+            document.getElementById('aqiValue').textContent = Math.round(aqi);
+            
+            const aqiInfo = getAQIInfo(aqi);
+            document.getElementById('aqiStatus').textContent = aqiInfo.status;
+            document.getElementById('aqiStatus').className = `aqi-status ${aqiInfo.class
+            }`;
+            document.getElementById('aqiDescription').textContent = aqiInfo.description;
+            
+            // Update environmental sensors
+            document.getElementById('temperature').textContent = `${Math.round(data.temperature || 0)}°C`;
+            document.getElementById('humidity').textContent = `${Math.round(data.humidity || 0)}%`;
+            document.getElementById('pressure').textContent = `${Math.round(data.pressure || 0)} hPa`;
+            
+            // Update air quality sensors
+            document.getElementById('pm25').textContent = `${(data.pm25 || 0).toFixed(1)} μg/m³`;
+            document.getElementById('voc').textContent = `${Math.round(data.voc || 0)} ppb`;
+            
+            // Update gas sensors
+            document.getElementById('co').textContent = `${(data.co || 0).toFixed(1)} ppm`;
+            document.getElementById('no2').textContent = `${Math.round(data.no2 || 0)} ppb`;
+            document.getElementById('nh3').textContent = `${Math.round(data.nh3 || 0)} ppb`;
+            
+            // Update location info
+            if (data.gpsValid && data.gpsLat && data.gpsLon) {
+                const placeName = data.placeName || `${data.gpsLat.toFixed(4)}, ${data.gpsLon.toFixed(4)}`;
+                document.getElementById('locationInfo').innerHTML = `
+                    <i class="fas fa-map-marker-alt"></i>
+                    <span>${placeName}</span>
+                `;
+                
+                // Update map
+                if (map && marker) {
+                    marker.setLatLng([data.gpsLat, data.gpsLon]);
+                } else if (map) {
+                    marker = L.marker([data.gpsLat, data.gpsLon]).addTo(map);
+                    map.setView([data.gpsLat, data.gpsLon], 13);
+                }
+            }
+            
+            // Update fan status
+            const fanElement = document.getElementById('fanStatus');
+            if (aqi > 90) {
+                fanElement.className = 'fan-status fan-on';
+                fanElement.innerHTML = '<i class="fas fa-fan fan-icon"></i><span>Air Purifier: ON</span>';
+            } else {
+                fanElement.className = 'fan-status fan-off';
+                fanElement.innerHTML = '<i class="fas fa-fan fan-icon"></i><span>Air Purifier: OFF</span>';
+            }
+            
+            // Update last updated time
+            updateLastUpdated();
+        }
+
+        function updatePredictions(predictionsData, metadata) {
+            console.log('Updating predictions with data:', predictionsData);
+            
+            if (!predictionsData || !Array.isArray(predictionsData) || predictionsData.length === 0) {
+                console.log('No valid predictions data received');
+                showNoPredictions();
+                return;
+            }
+            
+            predictions = predictionsData;
+            const predictionsGrid = document.getElementById('predictionsGrid');
+            const predictionMetadata = document.getElementById('predictionMetadata');
+            
+            // Clear loading state
+            predictionsGrid.innerHTML = '';
+            
+            // Generate prediction cards
+            predictionsData.forEach((prediction, index) => {
+                const predDate = new Date(prediction.date);
+                const dayName = predDate.toLocaleDateString('en-US', { weekday: 'short' });
+                const dayDate = predDate.toLocaleDateString('en-US', { month: 'numeric', day: 'numeric' });
+                
+                const predictionCard = document.createElement('div');
+                predictionCard.className = 'prediction-card';
+                
+                // Get AQI status color
+                const aqiInfo = getAQIInfo(prediction.aqi);
+                predictionCard.style.background = getAQIColor(prediction.aqi);
+                
+                predictionCard.innerHTML = `
+                    <div class="prediction-day">${dayName} ${dayDate}</div>
+                    <div class="prediction-aqi">${Math.round(prediction.aqi)}</div>
+                    <div class="prediction-label">AQI</div>
+                    <div class="prediction-pm25">${prediction.pm25.toFixed(1)} μg/m³</div>
+                    <div class="prediction-label">PM2.5</div>
+                    <div class="prediction-temp">${prediction.temperature.toFixed(1)}°C</div>
+                `;
+                
+                // Add hover effect with prediction details
+                predictionCard.title = `${aqiInfo.status} - ${aqiInfo.description}\nConfidence: ${(prediction.confidence * 100).toFixed(1)}%`;
+                
+                predictionsGrid.appendChild(predictionCard);
+            });
+            
+            // Update metadata if available
+            if (metadata) {
+                document.getElementById('modelAccuracy').textContent = `${(metadata.accuracy * 100).toFixed(1)}%`;
+                document.getElementById('modelConfidence').textContent = `${(metadata.confidence * 100).toFixed(1)}%`;
+                document.getElementById('dataPoints').textContent = metadata.dataPoints || '--';
+                document.getElementById('lastGenerated').textContent = new Date(metadata.generatedAt).toLocaleString();
+                
+                predictionMetadata.style.display = 'block';
+            }
+            
+            console.log(`Updated ${predictionsData.length} predictions successfully`);
+        }
+
+        function showPredictionGenerating() {
+            const predictionsGrid = document.getElementById('predictionsGrid');
+            predictionsGrid.innerHTML = `
+                <div class="loading" style="grid-column: 1 / -1;">
+                    <div class="spinner"></div>
+                    AI generating predictions...
+                </div>
+            `;
+        }
+
+        function showNoPredictions() {
+            const predictionsGrid = document.getElementById('predictionsGrid');
+            predictionsGrid.innerHTML = `
+                <div class="loading" style="grid-column: 1 / -1; color: var(--text-secondary);">
+                    <i class="fas fa-exclamation-circle"></i>
+                    No predictions available
+                </div>
+            `;
+        }
+
+        function getAQIColor(aqi) {
+            if (aqi <= 50) return '#10b981'; // Good - Green
+            if (aqi <= 100) return '#f59e0b'; // Moderate - Yellow
+            if (aqi <= 150) return '#ff8c00'; // Unhealthy for Sensitive - Orange
+            if (aqi <= 200) return '#ef4444'; // Unhealthy - Red
+            if (aqi <= 300) return '#8b5cf6'; // Very Unhealthy - Purple
+            return '#7c2d12'; // Hazardous - Maroon
+        }
+
+        function getAQIInfo(aqi) {
+            if (aqi <= 50) {
+                return {
+                    status: 'Good',
+                    description: 'Air quality is satisfactory',
+                    class: 'aqi-good'
+                };
+            } else if (aqi <= 100) {
+                return {
+                    status: 'Moderate',
+                    description: 'Air quality is acceptable for most people',
+                    class: 'aqi-moderate'
+                };
+            } else if (aqi <= 150) {
+                return {
+                    status: 'Unhealthy for Sensitive Groups',
+                    description: 'Sensitive groups may experience health effects',
+                    class: 'aqi-unhealthy-sensitive'
+                };
+            } else if (aqi <= 200) {
+                return {
+                    status: 'Unhealthy',
+                    description: 'Everyone may experience health effects',
+                    class: 'aqi-unhealthy'
+                };
+            } else if (aqi <= 300) {
+                return {
+                    status: 'Very Unhealthy',
+                    description: 'Health warnings of emergency conditions',
+                    class: 'aqi-very-unhealthy'
+                };
+            } else {
+                return {
+                    status: 'Hazardous',
+                    description: 'Health alert: everyone may experience serious health effects',
+                    class: 'aqi-hazardous'
+                };
+            }
+        }
+
+        function updateLastUpdated() {
+            const now = new Date();
+            const timeString = now.toLocaleTimeString();
+            
+            // Update or create last updated element
+            let lastUpdatedElement = document.querySelector('.last-updated');
+            if (!lastUpdatedElement) {
+                lastUpdatedElement = document.createElement('div');
+                lastUpdatedElement.className = 'last-updated';
+                
+                // Add to AQI card
+                const aqiCard = document.getElementById('aqiCard');
+                aqiCard.appendChild(lastUpdatedElement);
+            }
+            
+            lastUpdatedElement.textContent = `Last updated: ${timeString}`;
+        }
+
+        // Keep connection alive with periodic ping
+        setInterval(() => {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({
+                    type: 'ping',
+                    timestamp: new Date().toISOString()
+                }));
+            }
+        }, 30000); // Ping every 30 seconds
+
+        // Auto-refresh predictions every hour
+        setInterval(() => {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({
+                    type: 'request_predictions',
+                    timestamp: new Date().toISOString()
+                }));
+            }
+        }, 3600000); // Request new predictions every hour
+
+        // Handle page visibility changes
+        document.addEventListener('visibilitychange', () => {
+            if (!document.hidden && (!ws || ws.readyState !== WebSocket.OPEN)) {
+                console.log('Page became visible, attempting to reconnect...');
+                connectWebSocket();
+            }
+        });
+
+        // Error handling for fetch failures
+        window.addEventListener('online', () => {
+            console.log('Network connection restored');
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
+                connectWebSocket();
+            }
+        });
+
+        window.addEventListener('offline', () => {
+            console.log('Network connection lost');
+            updateConnectionStatus('offline');
+        });
+    </script>
+</body>
+</html>
