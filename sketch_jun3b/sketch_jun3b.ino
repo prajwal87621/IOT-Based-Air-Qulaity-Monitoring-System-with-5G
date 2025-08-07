@@ -11,9 +11,9 @@
 // WiFi credentials (update as needed)
 const char* ssid = "Praj";  // Replace with your WiFi SSID
 const char* password = "1234567890";  // Replace with your WiFi password
-const char* serverUrl = "http://10.20.11.189:3000/api/sensor/data";  // Updated to match backend
-const char* wsServerUrl = "10.20.11.189";  // WebSocket server IP
-const int wsServerPort = 3000;
+const char* serverUrl = "https://air-quality-guardian.onrender.com/api/sensor/data";  // Updated to match backend
+const char* wsServerUrl = "air-quality-guardian.onrender.com";  // WebSocket server IP
+const int wsServerPort = 443;
 const char* wsPath = "/";  // Backend uses default WebSocket upgrade path
 
 // Device identification (matches backend schema)
@@ -161,7 +161,7 @@ void handleWebSocketMessage(const char* message) {
 void reconnectWebSocket() {
     if (!wsConnected && millis() - lastWsReconnect >= WS_RECONNECT_INTERVAL) {
         Serial.println("[WS] Attempting to reconnect...");
-        webSocket.begin(wsServerUrl, wsServerPort, wsPath);
+        webSocket.beginSSL(wsServerUrl, wsServerPort, wsPath);
         lastWsReconnect = millis();
     }
 }
