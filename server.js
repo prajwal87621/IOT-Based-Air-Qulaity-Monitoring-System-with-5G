@@ -708,8 +708,8 @@ function runMLPrediction() {
             return;
         }
         const pythonProcess = spawn('python3', [config.mlScript, config.dataExportPath], {
-            cwd: __dirname
-        });
+    env: { ...process.env, PYTHONUNBUFFERED: '1' }
+});
         let output = '';
         let errorOutput = '';
         pythonProcess.stdout.on('data', (data) => {
