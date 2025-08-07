@@ -794,7 +794,7 @@
 
             try {
                 // Update WebSocket URL - make sure this matches your server
-                ws = new WebSocket('ws://10.20.11.189:3000/ws');
+                ws = new WebSocket('wss://air-quality-guardian.onrender.com');
                 connectionAttempts++;
                 
                 ws.onopen = function() {
